@@ -40,10 +40,13 @@ A state-based CRDT carrier is a `SemilatticeSup S` with `OrderBot S` and `Decida
 | 13 | `DeliverySystem.reaches_converged` | Each replica's state eventually equals the join of all updates |
 | 14 | `DeliverySystem.eventual_agreement` | Any two replicas eventually hold identical state, forever after some finite T |
 | 15 | G-Set / G-Counter / PN-Counter | Each proven a lawful CvRDT carrier, inheriting SEC + eventual agreement; with monotone semantic reads |
+| 16 | `ORSet.add_wins` | **Add-wins**: a fresh add merged with a concurrent remove of the same element leaves it present — the defining OR-Set property, and the case a 2P-Set gets wrong |
+| 17 | `ORSet.remove_lookup_false` | Absent a concurrent add, remove genuinely removes (every observed token tombstoned) |
+| 18 | `ORSet.add_lookup` | A fresh add makes the element present |
 
 ## The honest boundary
 
-Liveness is **conditional**, by necessity: you cannot prove a network delivers messages. The `DeliverySystem` structure carries fairness (every generated update eventually reaches every replica) and quiescence (the update set is finite and fixed) as **asserted fields**, not derived facts. That is the line between what Lean certifies (given fair delivery, replicas converge and agree) and what the network layer must guarantee (fair delivery). The instances are the *easy* lattices; the genuinely subtle merge logic — OR-Set remove-wins, sequence CRDTs — is the next frontier, where machine-checking earns its keep.
+Liveness is **conditional**, by necessity: you cannot prove a network delivers messages. The `DeliverySystem` structure carries fairness (every generated update eventually reaches every replica) and quiescence (the update set is finite and fixed) as **asserted fields**, not derived facts. That is the line between what Lean certifies (given fair delivery, replicas converge and agree) and what the network layer must guarantee (fair delivery). G-Set/G-Counter/PN-Counter are the *easy* lattices; the **OR-Set** is the genuinely subtle one — its `add_wins` theorem machine-checks the concurrent add-beats-remove behaviour a 2P-Set gets wrong. Sequence CRDTs (RGA) are the next frontier.
 
 CRDT convergence is **not** distributed consensus in the Paxos/Raft sense: CvRDTs converge precisely by *avoiding* consensus (no quorum, no total order, AP not CP). The word "consensus" here is used in the convergence sense, as in the Kuramoto control literature, not the FLP/quorum sense.
 
@@ -54,7 +57,8 @@ Crdt/
 ├── Defs.lean         — merge (= join), the three CvRDT conditions, replicaState
 ├── Convergence.lean  — fold_merge_eq_replicaState, strong_eventual_consistency (safety half of SEC)
 ├── Liveness.lean     — eventually_covers, DeliverySystem, eventual_agreement (the "Eventual" half)
-└── Instances.lean    — G-Set, G-Counter, PN-Counter as lawful CvRDT carriers
+├── Instances.lean    — G-Set, G-Counter, PN-Counter as lawful CvRDT carriers
+└── ORSet.lean        — Observed-Remove Set: add-wins semantics over a product of grow-only sets
 ```
 
 ## Building
