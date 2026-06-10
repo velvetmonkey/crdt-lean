@@ -43,10 +43,13 @@ A state-based CRDT carrier is a `SemilatticeSup S` with `OrderBot S` and `Decida
 | 16 | `ORSet.add_wins` | **Add-wins**: a fresh add merged with a concurrent remove of the same element leaves it present — the defining OR-Set property, and the case a 2P-Set gets wrong |
 | 17 | `ORSet.remove_lookup_false` | Absent a concurrent add, remove genuinely removes (every observed token tombstoned) |
 | 18 | `ORSet.add_lookup` | A fresh add makes the element present |
+| 19 | `RGA.read_strong_eventual_consistency` | **Sequence CRDT**: replicas with the same delivered set produce the *identical ordered list*, not just the same element set |
+| 20 | `RGA.read_sorted` / `RGA.read_determined` | The read is sorted by identifier and depends only on the live set — order is delivery-independent |
+| 21 | `RGA.delete_not_read` / `RGA.insert_read` | Tombstoning removes a position from the sequence; a fresh insert makes it appear |
 
 ## The honest boundary
 
-Liveness is **conditional**, by necessity: you cannot prove a network delivers messages. The `DeliverySystem` structure carries fairness (every generated update eventually reaches every replica) and quiescence (the update set is finite and fixed) as **asserted fields**, not derived facts. That is the line between what Lean certifies (given fair delivery, replicas converge and agree) and what the network layer must guarantee (fair delivery). G-Set/G-Counter/PN-Counter are the *easy* lattices; the **OR-Set** is the genuinely subtle one — its `add_wins` theorem machine-checks the concurrent add-beats-remove behaviour a 2P-Set gets wrong. Sequence CRDTs (RGA) are the next frontier.
+Liveness is **conditional**, by necessity: you cannot prove a network delivers messages. The `DeliverySystem` structure carries fairness (every generated update eventually reaches every replica) and quiescence (the update set is finite and fixed) as **asserted fields**, not derived facts. That is the line between what Lean certifies (given fair delivery, replicas converge and agree) and what the network layer must guarantee (fair delivery). G-Set/G-Counter/PN-Counter are the *easy* lattices; the **OR-Set** (`add_wins`) and the **sequence CRDT** (`RGA.read_strong_eventual_consistency`) are the genuinely subtle ones, machine-checking the concurrent add-beats-remove behaviour a 2P-Set gets wrong and the identical-ordered-sequence guarantee respectively. Both abstract identifier/token *allocation* into "you are handed a fresh id", exactly as a real implementation's allocator would supply; the convergence layer above allocation is what is certified here.
 
 CRDT convergence is **not** distributed consensus in the Paxos/Raft sense: CvRDTs converge precisely by *avoiding* consensus (no quorum, no total order, AP not CP). The word "consensus" here is used in the convergence sense, as in the Kuramoto control literature, not the FLP/quorum sense.
 
@@ -58,7 +61,8 @@ Crdt/
 ├── Convergence.lean  — fold_merge_eq_replicaState, strong_eventual_consistency (safety half of SEC)
 ├── Liveness.lean     — eventually_covers, DeliverySystem, eventual_agreement (the "Eventual" half)
 ├── Instances.lean    — G-Set, G-Counter, PN-Counter as lawful CvRDT carriers
-└── ORSet.lean        — Observed-Remove Set: add-wins semantics over a product of grow-only sets
+├── ORSet.lean        — Observed-Remove Set: add-wins semantics over a product of grow-only sets
+└── Sequence.lean     — Sequence CRDT (RGA-family): convergence to an identical ordered sequence
 ```
 
 ## Building
