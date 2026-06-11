@@ -90,7 +90,7 @@ theorem mem_read {s : State ι α} {p : ι} : p ∈ read s ↔ p ∈ positions s
 /-- **The read is sorted by identifier.** The sequence order is a deterministic function
 of the position identifiers, never of delivery history. -/
 theorem read_sorted (s : State ι α) : (read s).Pairwise (· ≤ ·) := by
-  rw [read]; exact Finset.sort_sorted (positions s) (· ≤ ·)
+  rw [read]; exact Finset.pairwise_sort (positions s) (· ≤ ·)
 
 /-- The read is duplicate-free. -/
 theorem read_nodup (s : State ι α) : (read s).Nodup := by
