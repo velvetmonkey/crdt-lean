@@ -1,6 +1,6 @@
 /-
 Copyright (c) 2026 crdt-lean contributors. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
+Released under the MIT license as described in the file LICENSE.
 Authors: crdt-lean contributors
 -/
 import Mathlib
@@ -52,6 +52,15 @@ in another replica's state. This is what makes delivery monotone. -/
 theorem le_merge_left (a b : S) : a ≤ merge a b := le_sup_left
 
 theorem le_merge_right (a b : S) : b ≤ merge a b := le_sup_right
+
+/-- Merge is the *least* upper bound: any state `c` that already dominates both
+inputs also dominates their merge, so merging adds nothing beyond `a` and `b`.
+Together with `le_merge_left`/`le_merge_right` this characterises `merge` as the
+join — the algebraic statement that a merge can never lose information (a wider
+peer's coordinates are all preserved), which the engineering layer must uphold
+at its trust boundary. -/
+theorem merge_least (a b c : S) (ha : a ≤ c) (hb : b ≤ c) : merge a b ≤ c := by
+  rw [merge_def]; exact sup_le ha hb
 
 /-- A replica's observable state after delivering the finite set `updates` of
 update-states is the join of all delivered states. The empty delivery is `⊥`. -/
