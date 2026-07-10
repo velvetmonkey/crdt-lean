@@ -53,5 +53,42 @@ modules is a follow-up.
 /-- info: 'Crdt.gcounter_eventual_agreement' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in #print axioms Crdt.gcounter_eventual_agreement
 
+-- Causal-Cut Consumable Authority — the authority frontier, necessity v0
+-- (`Crdt.AuthorityFrontier`).
+
+/-- info: 'Crdt.AuthorityFrontier.no_disconnected_double_availability' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.no_disconnected_double_availability
+
+/-- info: 'Crdt.AuthorityFrontier.authority_frontier_card_le_one' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.authority_frontier_card_le_one
+
+/-- info: 'Crdt.AuthorityFrontier.double_consume_countermodel' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.double_consume_countermodel
+
+/-- info: 'Crdt.AuthorityFrontier.copy_frontier_init_card_two' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.copy_frontier_init_card_two
+
+/-- info: 'Crdt.AuthorityFrontier.ccca_teeth_double_consume' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.ccca_teeth_double_consume
+
+/-- info: 'Crdt.AuthorityFrontier.ccca_teeth_both_live' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.ccca_teeth_both_live
+
+/-- info: 'Crdt.AuthorityFrontier.ccca_edge_only_still_unsafe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.ccca_edge_only_still_unsafe
+
+/-- info: 'Crdt.AuthorityFrontier.ccca_safe_world_safe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.ccca_safe_world_safe
+
+/-- info: 'Crdt.AuthorityFrontier.ccca_safe_world_transfer_live' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.ccca_safe_world_transfer_live
+
+/--
+info: 'Crdt.AuthorityFrontier.ccca_safe_world_no_double_availability' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+-/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.ccca_safe_world_no_double_availability
+
 def main : IO Unit :=
   IO.println "axiom gate passed: all checks pinned by #guard_msgs at compile time"
