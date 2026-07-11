@@ -90,5 +90,25 @@ info: 'Crdt.AuthorityFrontier.ccca_safe_world_no_double_availability' depends on
 -/
 #guard_msgs in #print axioms Crdt.AuthorityFrontier.ccca_safe_world_no_double_availability
 
+-- Sealed-handoff sufficiency (`Crdt.AuthorityFrontier`, third mesh brick).
+
+/-- info: 'Crdt.AuthorityFrontier.sealed_handoff_safe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.sealed_handoff_safe
+
+/-- info: 'Crdt.AuthorityFrontier.wSafe_sealed_handoff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.wSafe_sealed_handoff
+
+/-- info: 'Crdt.AuthorityFrontier.wEdgeOnly_not_sealed_handoff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.wEdgeOnly_not_sealed_handoff
+
+/-- info: 'Crdt.AuthorityFrontier.wSeq_safe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.wSeq_safe
+
+/-- info: 'Crdt.AuthorityFrontier.wSeq_not_sealed_handoff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.wSeq_not_sealed_handoff
+
+/-- info: 'Crdt.AuthorityFrontier.gap_vacuous' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.gap_vacuous
+
 def main : IO Unit :=
   IO.println "axiom gate passed: all checks pinned by #guard_msgs at compile time"
