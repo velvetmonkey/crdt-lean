@@ -11,6 +11,8 @@ Lean 4 formal proofs that state-based CRDTs (CvRDTs) converge: **Strong Eventual
 
 **Zero sorry statements.** Standard axioms only (`propext`, `Classical.choice`, `Quot.sound`).
 
+This library is also the coordination-free no-double-spend spine under the [seal](https://github.com/velvetmonkey/seal) authorization mesh: a one-shot approval provably cannot be double-spent across a network partition without coordination — see [the authority frontier](#beyond-convergence-the-authority-frontier).
+
 ## Why it matters
 
 A CvRDT is the AP-side answer to replicated state: nodes gossip their full state and merge, and the datatype is designed so that merging always converges without coordination, quorums, or a total order. The convergence guarantee rests on one algebraic fact — the state space is a **join-semilattice** and merge is the **join** — so order, duplication, and concurrency of delivery are quotiented away. This library machine-checks that guarantee and then discharges it for datatypes you would actually ship, so the abstract theorem is anchored to concrete objects rather than left as an assumption.
@@ -19,7 +21,7 @@ It is the discrete, asynchronous sibling of the continuous consensus result in [
 
 ## Beyond convergence: the authority frontier
 
-Convergence tells you replicas *agree*. It does not tell you a **one-shot resource** stays single-use. `Crdt/AuthorityFrontier.lean` adds that: over freely-replicable state, keeping a single-use approval safe *forces* at most one replica able to consume it at any consistent cut (`authority_frontier_card_le_one`), with a witnessed double-spend when coordination is dropped (`double_consume_countermodel`), plus the sealed-handoff pattern that keeps a fleet safe (`sealed_handoff_safe`). See **[docs/AUTHORITY-FRONTIER.md](docs/AUTHORITY-FRONTIER.md)**. This is the coordination-free no-double-spend spine under the [seal](https://github.com/velvetmonkey/seal) authorization mesh.
+Convergence tells you replicas *agree*. It does not tell you a **one-shot resource** stays single-use. `Crdt/AuthorityFrontier.lean` adds that: over freely-replicable state, keeping a single-use approval safe *forces* at most one replica able to consume it at any consistent cut (`authority_frontier_card_le_one`), with a witnessed double-spend when coordination is dropped (`double_consume_countermodel`), plus the sealed-handoff pattern that keeps a fleet safe (`sealed_handoff_safe`). See **[docs/AUTHORITY-FRONTIER.md](docs/AUTHORITY-FRONTIER.md)**. This is the coordination-free no-double-spend spine under the [seal](https://github.com/velvetmonkey/seal) authorization mesh; the deployed-gate bridge ([seal-host](https://github.com/velvetmonkey/seal-host)'s `AuthorityFrontierBridge`) applies it within the approval's TTL window, per concurrent replica — never "single-use forever".
 
 ## Setting
 
