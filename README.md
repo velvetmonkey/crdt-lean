@@ -17,6 +17,10 @@ A CvRDT is the AP-side answer to replicated state: nodes gossip their full state
 
 It is the discrete, asynchronous sibling of the continuous consensus result in [kuramoto-lean](https://github.com/velvetmonkey/kuramoto-lean): where Kuramoto certifies phase synchrony of coupled oscillators, this certifies state convergence of gossiping replicas.
 
+## Beyond convergence: the authority frontier
+
+Convergence tells you replicas *agree*. It does not tell you a **one-shot resource** stays single-use. `Crdt/AuthorityFrontier.lean` adds that: over freely-replicable state, keeping a single-use approval safe *forces* at most one replica able to consume it at any consistent cut (`authority_frontier_card_le_one`), with a witnessed double-spend when coordination is dropped (`double_consume_countermodel`), plus the sealed-handoff pattern that keeps a fleet safe (`sealed_handoff_safe`). See **[docs/AUTHORITY-FRONTIER.md](docs/AUTHORITY-FRONTIER.md)**. This is the coordination-free no-double-spend spine under the [seal](https://github.com/velvetmonkey/seal) authorization mesh.
+
 ## Setting
 
 A state-based CRDT carrier is a `SemilatticeSup S` with `OrderBot S` and `DecidableEq S`: `⊥` is the initial state, `merge a b := a ⊔ b` is the join. A replica's observable state after delivering a finite set `updates : Finset S` is `replicaState updates := updates.sup id`, and a delivery stream is a `List S` folded with `merge` from `⊥`. The bridge lemma collapses any such fold to the join over the *delivered set*, which is what makes SEC immediate.
