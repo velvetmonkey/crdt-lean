@@ -110,5 +110,29 @@ info: 'Crdt.AuthorityFrontier.ccca_safe_world_no_double_availability' depends on
 /-- info: 'Crdt.AuthorityFrontier.gap_vacuous' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in #print axioms Crdt.AuthorityFrontier.gap_vacuous
 
+-- Sufficiency lifted to the (generated) abstract system
+-- (`Crdt.AuthorityFrontier`, Layer D — fourth mesh brick).
+
+/-- info: 'Crdt.AuthorityFrontier.sufficiency_needs_generation' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.sufficiency_needs_generation
+
+/-- info: 'Crdt.AuthorityFrontier.sealed_senders_safe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.sealed_senders_safe
+
+/-- info: 'Crdt.AuthorityFrontier.copy_not_sealed_senders' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.copy_not_sealed_senders
+
+/-- info: 'Crdt.AuthorityFrontier.wSafe_sender_never_live' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.wSafe_sender_never_live
+
+/-- info: 'Crdt.AuthorityFrontier.seq_safe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.seq_safe
+
+/-- info: 'Crdt.AuthorityFrontier.seq_both_live_init' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.seq_both_live_init
+
+/-- info: 'Crdt.AuthorityFrontier.seq_not_sealed_senders' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.seq_not_sealed_senders
+
 def main : IO Unit :=
   IO.println "axiom gate passed: all checks pinned by #guard_msgs at compile time"

@@ -573,4 +573,226 @@ theorem gap_vacuous (w : CutWorld) :
     obtain ⟨g, hgmem, _⟩ := hfires.1
     exact absurd (hpast hgmem) (Finset.notMem_empty g)
 
+/-! ## Layer D — sufficiency at the abstract level: the probe, the no-go, the lift
+
+**Probe verdict (recorded before the lift): the literal lift is REFUTED.**
+`CutWorld.SealedHandoff` cannot be stated over the bare `AuthoritySystem`
+(no events, no causal order, no disable vocabulary — the boundary already
+named in Layer C's honest-scope note), and more fundamentally NO
+discriminating predicate over the bare signature can imply `Safe`:
+
+* **The generation gap.** `reachable` is an arbitrary step-closed FIELD
+  with no induction principle, and `receipts` at reachable configurations
+  are unconstrained except along steps. Sufficiency is an invariant
+  argument — base case plus preservation — and the bare structure has no
+  base case. `StepFreeSystem` below makes this a kernel-checked no-go: a
+  system with NO steps and NO liveness (so every step/live-shaped pattern
+  holds vacuously, including the direct analogue of the sealed-handoff
+  predicate) whose constant receipts already violate safety
+  (`sufficiency_needs_generation`). A predicate that survives this
+  countermodel must constrain `receipts` at reachable configurations
+  directly — i.e. restate `Safe`, the kill-line violation.
+
+**The lift, at the honest price.** Sufficiency holds one level up, over
+`GeneratedAuthoritySystem`: the bare system plus exactly the structure the
+`CutWorld` probe model provides for free — an initial configuration with
+empty receipts, reachability generated from it (an induction principle),
+and steps that fire only when live (`CutWorld`'s `validCut`/`fires`
+discipline). Over that structure, `SealedSenders` — every domain except a
+designated receiver is never live at any reachable configuration — implies
+safety (`sealed_senders_safe`), with a structural proof and no finiteness
+assumption on `D`. This is the maximal available generality: the no-go
+shows the two added laws cannot be dropped.
+
+**Kill-line discipline (the predicate is discriminating, not Safe
+restated).** `SealedSenders` mentions only `live` and `reachable` — no
+receipts, no cardinality. `CopySystem` instantiates the generated laws
+(`CopyGenerated`) and FAILS the predicate (`copy_not_sealed_senders`) — as
+it must, being unsafe. And the correspondence with Layer C is checked, not
+asserted: in `wSafe` the sealed sender is never `cutLive` at ANY cut
+(`wSafe_sender_never_live`) — `SealedSenders` is exactly that shape, one
+level up: the abstract shadow of `CutWorld.SealedHandoff`'s derived effect
+(`seal_blocks_fires`), stating the seal's operational content (the sender
+is never live) where no causal order exists to state its FORM (the
+disable-before-consume edge).
+
+**No biconditional, again.** `SeqSystem` — the abstract mirror of `wSeq`'s
+consume-sequencing — is Safe (`seq_safe`) with BOTH domains live at the
+initial configuration (`seq_both_live_init`), hence no sealed sender
+(`seq_not_sealed_senders`). Sufficiency only, exactly as in Layer C. -/
+
+/-- **The no-go countermodel.** No steps, no liveness, constant two-element
+receipts, everything reachable. Every `AuthoritySystem` law holds
+(vacuously); every pattern over `step`/`live` holds (vacuously); safety
+fails. Sufficiency cannot live at this generality. -/
+def StepFreeSystem : AuthoritySystem Bool where
+  Config := Unit
+  reachable _ := True
+  step _ _ _ := False
+  receipts _ := {true, false}
+  live _ _ := False
+  disconnected _ _ _ := True
+  step_live _ _ h := absurd h not_false
+  step_reachable _ _ _ _ hs := hs.elim
+  receipts_step _ _ _ hs := hs.elim
+  frozen_live _ _ _ _ _ hs _ := hs.elim
+
+/-- **The generation gap, kernel-checked.** The direct abstract analogue of
+the sealed-handoff predicate — some receiver `d₀` such that every other
+domain is never live at any reachable configuration — HOLDS in the
+step-free system (vacuously: nobody is ever live), yet the system is not
+`Safe`. So over the bare `AuthoritySystem` the predicate does not imply
+safety; the lift genuinely needs generated reachability. -/
+theorem sufficiency_needs_generation :
+    (∃ d₀ : Bool, ∀ c, StepFreeSystem.reachable c →
+      ∀ d, d ≠ d₀ → ¬ StepFreeSystem.live c d) ∧
+    ¬ Safe StepFreeSystem := by
+  constructor
+  · exact ⟨true, fun _ _ _ _ h => h⟩
+  · intro hsafe
+    have := hsafe () trivial
+    revert this
+    decide
+
+/-- The bare system plus exactly what the finite probe model supplied for
+free: an initial configuration with empty receipts, reachability GENERATED
+from it (the induction principle `CutWorld`'s down-closed cuts carry
+intrinsically), and steps that fire only when live (`validCut`/`fires`).
+The no-go (`sufficiency_needs_generation`) shows these cannot be dropped. -/
+structure GeneratedAuthoritySystem (D : Type) [DecidableEq D] extends
+    AuthoritySystem D where
+  /-- The initial configuration. -/
+  init : Config
+  /-- The initial configuration is reachable. -/
+  init_reachable : reachable init
+  /-- Nothing has been consumed initially. -/
+  init_receipts : receipts init = ∅
+  /-- Steps fire only from local enablement (the `fires` discipline). -/
+  step_requires_live : ∀ c d c', step c d c' → live c d
+  /-- Reachability is generated: induction from `init` along steps. -/
+  reachable_generated : ∀ (P : Config → Prop), P init →
+    (∀ c d c', reachable c → P c → step c d c' → P c') →
+    ∀ c, reachable c → P c
+
+/-- **The lifted sealed-handoff predicate.** Some designated receiver `d₀`;
+every OTHER domain — every sender — is never live at any reachable
+configuration. Pure `live`/`reachable`: no receipts, no cardinality, no
+`Safe`. The abstract shadow of `CutWorld.SealedHandoff`: with no causal
+order to state the seal's form (disable-before-consume), it states the
+seal's checked operational effect (`wSafe_sender_never_live`). -/
+def SealedSenders (S : GeneratedAuthoritySystem D) : Prop :=
+  ∃ d₀ : D, ∀ c, S.reachable c → ∀ d, d ≠ d₀ → ¬ S.live c d
+
+/-- **Sufficiency, lifted (the fourth mesh brick).** In a generated system
+whose senders are all sealed, safety holds: receipts start empty and only
+the receiver can ever step, so every reachable configuration's receipts
+live inside `{d₀}`. Structural induction along generated reachability — no
+finiteness of `D`, no enumeration, no causal order. -/
+theorem sealed_senders_safe (S : GeneratedAuthoritySystem D)
+    (h : SealedSenders S) : Safe S.toAuthoritySystem := by
+  obtain ⟨d₀, hseal⟩ := h
+  have hinv : ∀ c, S.reachable c → S.receipts c ⊆ {d₀} := by
+    intro c hc
+    refine S.reachable_generated (fun c => S.receipts c ⊆ {d₀}) ?_ ?_ c hc
+    · show S.receipts S.init ⊆ {d₀}
+      rw [S.init_receipts]
+      exact Finset.empty_subset _
+    · intro c d c' hr hP hs
+      show S.receipts c' ⊆ {d₀}
+      have hlive := S.step_requires_live c d c' hs
+      have hd : d = d₀ := by
+        by_contra hne
+        exact hseal c hr d hne hlive
+      rw [S.receipts_step c d c' hs, hd]
+      exact Finset.insert_subset_iff.mpr ⟨Finset.mem_singleton_self d₀, hP⟩
+  intro c hc
+  calc (S.receipts c).card
+      ≤ ({d₀} : Finset D).card := Finset.card_le_card (hinv c hc)
+    _ = 1 := Finset.card_singleton d₀
+
+/-- The uncoordinated copy system carries the generated structure: its
+reachability is inductively defined, its receipts start empty, and its
+steps require local enablement. So the enriched laws do not smuggle in
+safety — the unsafe countermodel satisfies all of them. -/
+def CopyGenerated : GeneratedAuthoritySystem Bool where
+  toAuthoritySystem := CopySystem
+  init := (false, false)
+  init_reachable := CopyReach.init
+  init_receipts := by decide
+  step_requires_live _ _ _ hs := hs.1
+  reachable_generated P hinit hstep c hc := by
+    induction hc with
+    | init => exact hinit
+    | @stepL b hr ih => exact hstep (false, b) true (true, b) hr ih ⟨rfl, rfl⟩
+    | @stepR a hr ih => exact hstep (a, false) false (a, true) hr ih ⟨rfl, rfl⟩
+
+/-- Kill-line witness: the (unsafe) copy system FAILS `SealedSenders` —
+both domains are live at the reachable initial configuration. The
+predicate discriminates; it is not vacuously available. -/
+theorem copy_not_sealed_senders : ¬ SealedSenders CopyGenerated := by
+  rintro ⟨d₀, h⟩
+  cases d₀ with
+  | true => exact h (false, false) CopyReach.init false (by decide) rfl
+  | false => exact h (false, false) CopyReach.init true (by decide) rfl
+
+/-- The checked Layer C ↔ Layer D correspondence: in the sealed-handoff
+world `wSafe`, the sealed sender is never `cutLive` at ANY cut — the exact
+shape `SealedSenders` states abstractly. -/
+theorem wSafe_sender_never_live : ∀ C : Finset PE, ¬ wSafe.cutLive true C := by
+  decide
+
+/-- The abstract mirror of `wSeq` (consume-sequencing): both domains are
+live at the start, whoever consumes first poisons the other's enablement
+(here: enablement exists only at the initial configuration), and the
+domains coordinate (`disconnected` is empty). Safe, with no sealed
+sender. -/
+def SeqSystem : GeneratedAuthoritySystem Bool where
+  Config := CopyConfig
+  reachable c := c = (false, false) ∨ c = (true, false) ∨ c = (false, true)
+  step c d c' := c = (false, false) ∧
+    c' = (if d then (true, c.2) else (c.1, true))
+  receipts c :=
+    (if c.1 then {true} else ∅) ∪ (if c.2 then {false} else ∅)
+  live c _ := c = (false, false)
+  disconnected _ _ _ := False
+  step_live c d h := ⟨if d then (true, c.2) else (c.1, true), h, rfl⟩
+  step_reachable c d c' _ hs := by
+    obtain ⟨hc, rfl⟩ := hs
+    subst hc
+    cases d
+    · exact Or.inr (Or.inr rfl)
+    · exact Or.inr (Or.inl rfl)
+  receipts_step c d c' hs := by
+    obtain ⟨hc, rfl⟩ := hs
+    subst hc
+    cases d <;> decide
+  frozen_live _ _ _ _ hdis _ _ := hdis.elim
+  init := (false, false)
+  init_reachable := Or.inl rfl
+  init_receipts := by decide
+  step_requires_live _ _ _ hs := hs.1
+  reachable_generated P hinit hstep c hc := by
+    rcases hc with rfl | rfl | rfl
+    · exact hinit
+    · exact hstep (false, false) true (true, false) (Or.inl rfl) hinit ⟨rfl, rfl⟩
+    · exact hstep (false, false) false (false, true) (Or.inl rfl) hinit ⟨rfl, rfl⟩
+
+/-- `SeqSystem` is Safe — checked over its three reachable configurations. -/
+theorem seq_safe : Safe SeqSystem.toAuthoritySystem := by
+  intro c hc
+  rcases hc with rfl | rfl | rfl <;> decide
+
+/-- …with both domains genuinely live at the reachable start… -/
+theorem seq_both_live_init :
+    SeqSystem.live (false, false) true ∧ SeqSystem.live (false, false) false :=
+  ⟨rfl, rfl⟩
+
+/-- …hence NO sealed sender: sufficiency, not necessity — the abstract
+mirror of `wSeq_safe` + `wSeq_not_sealed_handoff`. -/
+theorem seq_not_sealed_senders : ¬ SealedSenders SeqSystem := by
+  rintro ⟨d₀, h⟩
+  cases d₀ with
+  | true => exact h (false, false) (Or.inl rfl) false (by decide) rfl
+  | false => exact h (false, false) (Or.inl rfl) true (by decide) rfl
+
 end Crdt.AuthorityFrontier
