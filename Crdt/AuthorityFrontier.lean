@@ -417,4 +417,160 @@ theorem ccca_safe_world_no_double_availability :
     ¬ ∃ C : Finset PE, wSafe.closedCut C ∧ wSafe.validCut C ∧
       wSafe.cutLive true C ∧ wSafe.cutLive false C := by decide
 
+/-! ## Sealed-handoff SUFFICIENCY (the third mesh brick)
+
+The sufficiency half of the recorded handoff conjecture, discharged:
+**a sealed-handoff world is Safe** — every valid closed cut carries at most
+one completed consume (`sealed_handoff_safe`, a general `CutWorld` theorem
+with a structural proof; `decide` is used only for finite witnesses).
+
+**The seal is ONE causal edge.** Diffing `wEdgeOnly` (unsafe) against
+`wSafe` (safe), the only difference is `lt disableL consumeL`: the disable
+sits in the causal past of the sender's OWN consume, tripping `fires`'
+no-same-domain-disable clause. `SealedHandoff` states exactly that, as a
+PURE causal-order predicate over `w.lt` + `peDisable`/`peConsume`/`peDomL`
+— it mentions no receipts, no `Safe`, no cardinality, and none of the
+necessity theorems (the non-circularity kill line). Its discriminating
+fact against `wEdgeOnly` is the order bit `wEdgeOnly.lt 1 2 = false`
+(`wEdgeOnly_no_seal_edge`), decided independently of any double-consume
+outcome.
+
+**Vacuity discharge (Codex's caveat):** the event vocabulary is fixed —
+every `CutWorld` carries both consume events (2 and 5) — so
+`SealedHandoff`'s universal ranges over exactly one consume potential per
+domain and is never vacuously satisfied; no transfer-classification,
+origin, or coverage clauses are needed.
+
+**Why there is no biconditional (the tautology trap, and a discovery):**
+the naive gap disjunct "∃ a cut with an empty frontier" is VACUOUSLY true —
+at `C = ∅` nobody is live, in every world (`gap_vacuous`), so
+`Safe ⟺ handoff ∨ gap` would collapse to `Safe ⟺ True`. Worse, the probe
+found a THIRD safe shape: **causal consume-sequencing** (`wSeq`) — the
+sender's consume sits in the receiver's causal past (`wSeq.lt 2 5 = true`),
+so `fires`' no-consume-in-view clause kills the receiver's potential; the
+world is Safe (`wSeq_safe`) with NO sealed handoff
+(`wSeq_not_sealed_handoff`) and a genuinely live sender
+(`wSeq_sender_live`). The two-disjunct normal form recorded by the v0
+conjecture above is therefore INCOMPLETE as stated: any future
+characterization must account for at least {sealed handoff, genuine gap,
+consume-sequencing}, with "gap" needing a sharper definition than
+empty-frontier-somewhere. The conjecture text above is kept verbatim as the
+historical record; this paragraph is the refinement.
+
+**Honest scope:** sufficiency only — this does NOT claim the sealed
+handoff is the unique safe shape (`wSeq` refutes exactly that), and it is
+proven over the finite `CutWorld` probe model, not the abstract
+`AuthoritySystem` (which has no causal order to state the pattern over —
+lifting sufficiency to an abstract causal setting is a later brick). The
+landed novelty disclaimer applies unchanged. -/
+
+/-- The sealed-handoff pattern, as PURE causal order: some domain (the
+sender) has every one of its consume potentials sealed — a same-domain
+disable in the potential's own causal past. Reads only `w.lt` and the
+event vocabulary; no receipts, no safety, no cardinality. -/
+abbrev CutWorld.SealedHandoff (w : CutWorld) : Prop :=
+  ∃ d : Bool, ∀ e : PE, peConsume e = true → peDomL e = d →
+    ∃ g : PE, peDisable g = true ∧ peDomL g = d ∧ w.lt g e = true
+
+/-- A sealed consume can never fire: the sealing disable sits in its causal
+past, contradicting `fires`' no-same-domain-disable clause. -/
+theorem seal_blocks_fires (w : CutWorld) (e g : PE)
+    (hg : peDisable g = true) (hdom : peDomL g = peDomL e)
+    (hlt : w.lt g e = true) : ¬ w.fires e := by
+  intro hf
+  exact hf.2.1 g (Finset.mem_filter.mpr ⟨Finset.mem_univ g, hlt⟩) ⟨hg, hdom⟩
+
+/-- **Sealed-handoff sufficiency (the builder's guarantee).** In any world
+whose sender domain is sealed, every valid closed cut carries at most one
+completed consume: the sealed domain's consumes can never fire
+(`seal_blocks_fires`), so a valid cut's receipts live inside the other
+domain's single consume potential. Structural proof — no enumeration. -/
+theorem sealed_handoff_safe (w : CutWorld) (h : w.SealedHandoff) :
+    ∀ C : Finset PE, w.closedCut C → w.validCut C →
+      (w.cutReceipts C).card ≤ 1 := by
+  intro C _hclosed hvalid
+  obtain ⟨d, hseal⟩ := h
+  have hsub : w.cutReceipts C ⊆ {if d then (5 : PE) else 2} := by
+    intro e he
+    obtain ⟨heC, hcons⟩ := Finset.mem_filter.mp he
+    by_cases hd : peDomL e = d
+    · -- the sealed domain's consume cannot sit in a valid cut
+      obtain ⟨g, hg, hgdom, hlt⟩ := hseal e hcons hd
+      exact absurd (hvalid e heC hcons)
+        (seal_blocks_fires w e g hg (hgdom.trans hd.symm) hlt)
+    · -- the other domain owns exactly one consume potential
+      have hval : e.val = 2 ∨ e.val = 5 := by
+        simpa [peConsume] using hcons
+      rcases hval with h2 | h5
+      · have he2 : e = (2 : PE) := Fin.ext h2
+        subst he2
+        cases d with
+        | true => exact absurd rfl hd
+        | false => simp
+      · have he5 : e = (5 : PE) := Fin.ext h5
+        subst he5
+        cases d with
+        | true => simp
+        | false => exact absurd rfl hd
+  calc (w.cutReceipts C).card
+      ≤ ({if d then (5 : PE) else 2} : Finset PE).card :=
+        Finset.card_le_card hsub
+    _ = 1 := Finset.card_singleton _
+
+/-- Kill-line witness: the safe world IS a sealed handoff — decided from
+the causal order alone. -/
+theorem wSafe_sealed_handoff : wSafe.SealedHandoff := by decide
+
+/-- Kill-line witness: the edge-only world is NOT a sealed handoff —
+decided from the causal order alone, independent of its unsafe outcome. -/
+theorem wEdgeOnly_not_sealed_handoff : ¬ wEdgeOnly.SealedHandoff := by decide
+
+/-- THE discriminating bit, named: the safe world carries the seal edge. -/
+theorem wSafe_seal_edge : wSafe.lt 1 2 = true := rfl
+
+/-- …and the edge-only world does not. This single order fact is what
+separates them for `SealedHandoff` — no receipt is consulted. -/
+theorem wEdgeOnly_no_seal_edge : wEdgeOnly.lt 1 2 = false := rfl
+
+/-- The third safe shape found by the probe: causal consume-sequencing.
+Enables precede their own consumes; the sender's consume sits in the
+receiver's causal past; NO disable seals anywhere. -/
+def wSeq : CutWorld where
+  lt a b := (a.val = 0 && (b.val = 2 || b.val = 5))
+    || (a.val = 3 && b.val = 5)
+    || (a.val = 2 && b.val = 5)
+
+theorem wSeq_strict : wSeq.strict := by decide
+
+/-- `wSeq` is Safe: the sender's consume poisons the receiver's `fires`
+no-consume-in-view clause (`wSeq.lt 2 5 = true`). -/
+theorem wSeq_safe :
+    ∀ C : Finset PE, wSeq.closedCut C → wSeq.validCut C →
+      (wSeq.cutReceipts C).card ≤ 1 := by decide
+
+/-- …with NO sealed handoff: the two-disjunct conjecture is incomplete. -/
+theorem wSeq_not_sealed_handoff : ¬ wSeq.SealedHandoff := by decide
+
+/-- …and a genuinely live sender — this is a real authority scenario, not
+a world where nobody could ever spend. -/
+theorem wSeq_sender_live :
+    ∃ C : Finset PE, wSeq.closedCut C ∧ wSeq.validCut C ∧
+      wSeq.cutLive true C := by decide
+
+/-- The naive gap disjunct is vacuous: in EVERY world the empty cut is
+closed, valid, and has an empty frontier — `fires` demands an enable in
+the potential's past, but a potential whose past fits inside `∅` has an
+empty past. This is why the biconditional was cut. -/
+theorem gap_vacuous (w : CutWorld) :
+    ∃ C : Finset PE, w.closedCut C ∧ w.validCut C ∧
+      ∀ d : Bool, ¬ w.cutLive d C := by
+  refine ⟨∅, ?_, ?_, ?_⟩
+  · intro e he
+    exact absurd he (Finset.notMem_empty e)
+  · intro e he
+    exact absurd he (Finset.notMem_empty e)
+  · rintro d ⟨e, _, _, _, hpast, hfires⟩
+    obtain ⟨g, hgmem, _⟩ := hfires.1
+    exact absurd (hpast hgmem) (Finset.notMem_empty g)
+
 end Crdt.AuthorityFrontier
