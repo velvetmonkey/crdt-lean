@@ -4,4 +4,10 @@
 *.olean
 *.ilean
 *.trace
-lake-manifest.json
+# lake-manifest.json is Lake's LOCKFILE and is deliberately TRACKED.
+# Six of this repo's nine deps follow a moving branch (aesop/Qq master,
+# batteries/plausible/importGraph/LeanSearchClient main); the manifest is the
+# only record of the revs these proofs were actually checked against. Ignoring
+# it meant a fresh clone resolved to whatever those branches were that day, and
+# CI could not build at all. mcp-seal-dev, seal-host and temporal-logic-lean
+# all track theirs.
