@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# This repo had no CI at all until 2026-07-15. It carries proofs the seal fleet
+# cites (Crdt.AuthorityFrontier, Crdt.Liveness, Crdt.Convergence, Crdt.ORSet),
+# and nothing in automation had ever elaborated them: the axiom gate the
+# lakefile insists on lived entirely on a dev box.
+#
+# `lake build` alone runs the gate, because defaultTargets = ["Crdt",
+# "axiom_check"] and the #guard_msgs checks in Test/Axioms.lean fire on
+# elaboration. The explicit axiom_check run below is deliberate belt-and-braces:
+# it puts the axiom footprint in the log where a human can read it, and the grep
+# that follows is what actually refuses sorryAx / ofReduceBool. A gate whose
+# output nobody can see is the failure mode this repo just spent a day removing.
+#
+# Only dependency is public mathlib, so no token is required.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.3
+      - uses: leanprover/lean-action@v1.5.0
+        with:
+          use-github-cache: false
+          build: false
+      - run: lake build
+      - run: lake exe axiom_check 2>&1 | tee /tmp/axioms.txt
+      - run: "! grep -E 'sorryAx|Lean\\.ofReduceBool' /tmp/axioms.txt"
