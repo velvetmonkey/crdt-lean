@@ -1,5 +1,7 @@
 # crdt-lean
 
+[![CI](https://github.com/velvetmonkey/crdt-lean/actions/workflows/ci.yml/badge.svg)](https://github.com/velvetmonkey/crdt-lean/actions/workflows/ci.yml)
+
 [![Lean 4](https://img.shields.io/badge/Lean-4.28.0-blue)](https://lean-lang.org/)
 [![Mathlib](https://img.shields.io/badge/Mathlib-v4.28.0-purple)](https://github.com/leanprover-community/mathlib4)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
