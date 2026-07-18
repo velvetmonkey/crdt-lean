@@ -1,6 +1,5 @@
 # crdt-lean
 
-[![thread](https://img.shields.io/badge/%F0%9F%A7%B5-how%20it%20works-1DA1F2)](https://x.com/thevelvetmonke)
 [![CI](https://github.com/velvetmonkey/crdt-lean/actions/workflows/ci.yml/badge.svg)](https://github.com/velvetmonkey/crdt-lean/actions/workflows/ci.yml)
 
 [![Lean 4](https://img.shields.io/badge/Lean-4.28.0-blue)](https://lean-lang.org/)
