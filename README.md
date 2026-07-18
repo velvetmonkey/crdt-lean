@@ -1,5 +1,6 @@
 # crdt-lean
 
+[![thread](https://img.shields.io/badge/%F0%9F%A7%B5-how%20it%20works-1DA1F2)](https://x.com/thevelvetmonke)
 [![CI](https://github.com/velvetmonkey/crdt-lean/actions/workflows/ci.yml/badge.svg)](https://github.com/velvetmonkey/crdt-lean/actions/workflows/ci.yml)
 
 [![Lean 4](https://img.shields.io/badge/Lean-4.28.0-blue)](https://lean-lang.org/)
@@ -15,7 +16,15 @@ Lean 4 formal proofs that state-based CRDTs (CvRDTs) converge: **Strong Eventual
 
 This library is also the coordination-free no-double-spend spine under the [seal](https://github.com/velvetmonkey/seal) authorization mesh: a one-shot approval provably cannot be double-spent across a network partition without coordination — see [the authority frontier](#beyond-convergence-the-authority-frontier).
 
-## Why it matters
+## What this is, and why it matters
+
+This library formalizes convergence for state-based CRDTs. Its headline theorem, `Crdt.strong_eventual_consistency`, proves that two delivery streams containing the same set of update states produce exactly the same folded state, even if the updates arrived in different orders or were delivered more than once.
+
+The proof isolates the algebraic reason CRDT merge works. Each stream folds to the join of its finite delivered set, so the commutative, associative, and idempotent laws of a join-semilattice remove delivery order and duplication. Concrete modules build on this core for sets, counters, an add-wins OR-Set, and an ordered sequence read.
+
+The headline theorem is a safety guarantee, not a network-delivery theorem. It assumes the delivered sets are equal. Eventual agreement is proved only for a `DeliverySystem` carrying explicit fairness, monotonicity, soundness, and finite-quiescence assumptions. It is convergence without distributed consensus, and it does not establish those network conditions for a deployed system.
+
+## Background and motivation
 
 A CvRDT is the AP-side answer to replicated state: nodes gossip their full state and merge, and the datatype is designed so that merging always converges without coordination, quorums, or a total order. The convergence guarantee rests on one algebraic fact — the state space is a **join-semilattice** and merge is the **join** — so order, duplication, and concurrency of delivery are quotiented away. This library machine-checks that guarantee and then discharges it for datatypes you would actually ship, so the abstract theorem is anchored to concrete objects rather than left as an assumption.
 
