@@ -1028,4 +1028,479 @@ theorem step0_seq_shape :
       ¬wSeq.Unenabled 2 ∧ ¬wSeq.Unenabled 5 := by
   refine ⟨by decide, by decide, by decide, by decide⟩
 
+/-! ## Layer F — the handoff-or-gap NORMAL FORM (the characterization)
+
+The brick: `authority_normal_form` — for every strict probe world,
+
+  `SafeCuts w ↔ ∃ consume potential e, Unenabled e ∨ RelinquishWitnessed e`
+
+every safe world is a GAP or a WITNESSED RELINQUISH on some potential, and
+nothing else is safe. Both directions are STRUCTURAL proofs over all
+strict `CutWorld`s (an infinite class of orders — `decide` appears only in
+finite side conditions like `peConsume 2 = true`), not an enumeration.
+
+Decomposition, each step named:
+
+* `both_fires_unsafe` — the amalgamation: if both consume potentials can
+  fire, the glued cut `{2, 5} ∪ past 2 ∪ past 5` is closed (transitivity)
+  and valid (`fires`' no-consume-in-view clause makes both pasts
+  consume-free) and carries TWO receipts. Safety therefore forces a DEAD
+  potential;
+* `dead_potential_safe` — the converse: one dead potential confines every
+  valid cut's receipts to the other domain's single potential;
+* `safeCuts_iff_dead_potential` — safety ⟺ some potential is dead. THIS
+  equivalence is the operational content of the normal form;
+* `dead_trichotomy` — a dead potential is unenabled ∨ seal-witnessed ∨
+  sequencing-witnessed. HONESTY: this decomposition is de Morgan over the
+  three clauses of the v0-frozen `fires` predicate — definitional
+  bookkeeping, not new content. The content lives in
+  `safeCuts_iff_dead_potential`; the trichotomy only NAMES why the dead
+  potential is dead, and Layer E shows each name is independently
+  realizable;
+* `everLive_iff_fires` / `safeCuts_iff_ever_live_unique` — the trajectory
+  reading: `fires e` ⟺ its domain is live at SOME valid closed cut, so
+  safety ⟺ the two domains are never both ever-live. Cross-CUT mutual
+  exclusion — strictly stronger than v0's per-cut frontier bound;
+* `safe_cut_dichotomy` — the per-cut statement in the conjectured target
+  shape: at every valid closed cut of a safe world the frontier is EMPTY,
+  or is EXACTLY the singleton domain opposite a dead potential that
+  carries a gap-or-relinquish shape;
+* `sealedHandoff_iff_sealWitnessed` — bridge to Layer C: `SealedHandoff`
+  is precisely the seal disjunct, stated per potential.
+
+**What this does NOT say (the honest boundary).** The v0 conjecture read
+"handoff (the authority MOVES, with a causal witness) or gap". The proved
+normal form WEAKENS the handoff disjunct to "witnessed relinquish"
+(seal-by-disable or sequencing-by-consume): `wSeq` and `wGap` are safe
+worlds in which nothing ever moves, so movement cannot be a necessary
+disjunct — the two-disjunct conjecture as originally worded is REFUTED,
+and this trichotomy (gap / seal / sequencing, with the latter two folded
+into one witnessed-relinquish disjunct) is the correct statement. The gap
+disjunct is likewise sharpened from the vacuous cut-level "some cut has an
+empty frontier" (killed by `gap_vacuous`) to the potential-level "never
+enabled". Scope: the fixed 6-event, one-potential-per-domain vocabulary of
+Layer C; with several potentials per domain, "dead" must range over all of
+a domain's potentials and the amalgamation must glue the pasts of every
+undead pair — that lift is the next brick and is NOT claimed. All Layer
+A–D honest non-claims (crash recovery, unforgeability, Byzantine safety,
+clock/lease/quorum/epoch correctness, deployed SealV2 conformance,
+liveness during partitions) apply unchanged. -/
+
+/-- Membership in the causal past is exactly the order bit. -/
+theorem CutWorld.mem_past {w : CutWorld} {g e : PE} :
+    g ∈ w.past e ↔ w.lt g e = true :=
+  ⟨fun h => (Finset.mem_filter.mp h).2,
+   fun h => Finset.mem_filter.mpr ⟨Finset.mem_univ g, h⟩⟩
+
+/-- Operational safety of a probe world, as a named predicate: every valid
+down-closed cut carries at most one completed consume. -/
+abbrev CutWorld.SafeCuts (w : CutWorld) : Prop :=
+  ∀ C : Finset PE, w.closedCut C → w.validCut C → (w.cutReceipts C).card ≤ 1
+
+/-- The event vocabulary carries exactly two consume potentials. -/
+theorem consume_eq_two_or_five :
+    ∀ e : PE, peConsume e = true → e = 2 ∨ e = 5 := by decide
+
+/-- **The normal-form amalgamation.** If BOTH consume potentials can fire,
+the glued cut `{2, 5} ∪ past 2 ∪ past 5` is closed (transitivity of the
+causal order) and valid (`fires`' no-consume-in-view clause makes both
+pasts consume-free, and both consumes fire by hypothesis) — and it carries
+two completed consumes. So the world is not safe. Structural: holds for
+every strict world. -/
+theorem both_fires_unsafe (w : CutWorld) (hstrict : w.strict)
+    (h2 : w.fires 2) (h5 : w.fires 5) : ¬ w.SafeCuts := by
+  intro hsafe
+  obtain ⟨_hirr, htrans⟩ := hstrict
+  set C : Finset PE := insert 2 (insert 5 (w.past 2 ∪ w.past 5)) with hC
+  have h2C : (2 : PE) ∈ C := Finset.mem_insert_self _ _
+  have h5C : (5 : PE) ∈ C := Finset.mem_insert_of_mem (Finset.mem_insert_self _ _)
+  have hclosed : w.closedCut C := by
+    intro e he f hf
+    rcases Finset.mem_insert.mp he with rfl | he'
+    · exact Finset.mem_insert_of_mem (Finset.mem_insert_of_mem
+        (Finset.mem_union_left _ (CutWorld.mem_past.mpr hf)))
+    · rcases Finset.mem_insert.mp he' with rfl | he''
+      · exact Finset.mem_insert_of_mem (Finset.mem_insert_of_mem
+          (Finset.mem_union_right _ (CutWorld.mem_past.mpr hf)))
+      · rcases Finset.mem_union.mp he'' with hp | hp
+        · have hlt : w.lt f 2 = true := htrans f e 2 hf (CutWorld.mem_past.mp hp)
+          exact Finset.mem_insert_of_mem (Finset.mem_insert_of_mem
+            (Finset.mem_union_left _ (CutWorld.mem_past.mpr hlt)))
+        · have hlt : w.lt f 5 = true := htrans f e 5 hf (CutWorld.mem_past.mp hp)
+          exact Finset.mem_insert_of_mem (Finset.mem_insert_of_mem
+            (Finset.mem_union_right _ (CutWorld.mem_past.mpr hlt)))
+  have hvalid : w.validCut C := by
+    intro e _ hcons
+    rcases consume_eq_two_or_five e hcons with rfl | rfl
+    · exact h2
+    · exact h5
+  have hsub : ({2, 5} : Finset PE) ⊆ w.cutReceipts C := by
+    intro x hx
+    rcases Finset.mem_insert.mp hx with rfl | hx'
+    · exact Finset.mem_filter.mpr ⟨h2C, by decide⟩
+    · rw [Finset.mem_singleton] at hx'
+      subst hx'
+      exact Finset.mem_filter.mpr ⟨h5C, by decide⟩
+  have h2le : 2 ≤ (w.cutReceipts C).card := by
+    calc 2 = ({2, 5} : Finset PE).card := by decide
+      _ ≤ (w.cutReceipts C).card := Finset.card_le_card hsub
+  have := hsafe C hclosed hvalid
+  omega
+
+/-- **The converse: one dead potential is enough.** If some consume
+potential can never fire, every valid closed cut's receipts fit inside the
+other domain's single potential. Structural; strictness not needed. -/
+theorem dead_potential_safe (w : CutWorld)
+    (h : ¬ w.fires 2 ∨ ¬ w.fires 5) : w.SafeCuts := by
+  intro C _hclosed hvalid
+  rcases h with hdead | hdead
+  · have hsub : w.cutReceipts C ⊆ {5} := by
+      intro e he
+      obtain ⟨heC, hcons⟩ := Finset.mem_filter.mp he
+      rcases consume_eq_two_or_five e hcons with rfl | rfl
+      · exact absurd (hvalid _ heC hcons) hdead
+      · exact Finset.mem_singleton_self _
+    calc (w.cutReceipts C).card ≤ ({5} : Finset PE).card :=
+        Finset.card_le_card hsub
+      _ = 1 := Finset.card_singleton _
+  · have hsub : w.cutReceipts C ⊆ {2} := by
+      intro e he
+      obtain ⟨heC, hcons⟩ := Finset.mem_filter.mp he
+      rcases consume_eq_two_or_five e hcons with rfl | rfl
+      · exact Finset.mem_singleton_self _
+      · exact absurd (hvalid _ heC hcons) hdead
+    calc (w.cutReceipts C).card ≤ ({2} : Finset PE).card :=
+        Finset.card_le_card hsub
+      _ = 1 := Finset.card_singleton _
+
+/-- **Safety ⟺ a dead potential.** The operational content of the normal
+form: a strict world is safe exactly when one of its two consume
+potentials can never fire. -/
+theorem safeCuts_iff_dead_potential (w : CutWorld) (hstrict : w.strict) :
+    w.SafeCuts ↔ (¬ w.fires 2 ∨ ¬ w.fires 5) := by
+  constructor
+  · intro hsafe
+    by_contra h
+    rcases not_or.mp h with ⟨h2, h5⟩
+    exact both_fires_unsafe w hstrict (not_not.mp h2) (not_not.mp h5) hsafe
+  · exact dead_potential_safe w
+
+/-- **Why a potential is dead: the trichotomy.** A consume potential fails
+to fire exactly when it is unenabled (gap), seal-witnessed, or
+sequencing-witnessed. HONESTY: this is de Morgan over the three clauses of
+the v0-frozen `fires` — it names the failure, it does not add content. -/
+theorem dead_trichotomy (w : CutWorld) (e : PE) :
+    ¬ w.fires e ↔
+      (w.Unenabled e ∨ w.SealWitnessed e ∨ w.SeqWitnessed e) := by
+  constructor
+  · intro hnf
+    by_cases hA : ∃ g ∈ w.past e, peEnable g = true ∧ peDomL g = peDomL e
+    · by_cases hB : ∀ g ∈ w.past e, ¬(peDisable g = true ∧ peDomL g = peDomL e)
+      · by_cases hC : ∀ g ∈ w.past e, peConsume g = false
+        · exact absurd ⟨hA, hB, hC⟩ hnf
+        · right; right
+          push_neg at hC
+          obtain ⟨g, hgmem, hg⟩ := hC
+          have hg' : peConsume g = true := by simpa using hg
+          exact ⟨g, hg', CutWorld.mem_past.mp hgmem⟩
+      · right; left
+        push_neg at hB
+        obtain ⟨g, hgmem, hg1, hg2⟩ := hB
+        exact ⟨g, hg1, hg2, CutWorld.mem_past.mp hgmem⟩
+    · left
+      intro g hgmem hg
+      exact hA ⟨g, hgmem, hg⟩
+  · rintro (hU | ⟨g, hg1, hg2, hlt⟩ | ⟨g, hg1, hlt⟩) hf
+    · obtain ⟨g, hgmem, hg⟩ := hf.1
+      exact hU g hgmem hg
+    · exact hf.2.1 g (CutWorld.mem_past.mpr hlt) ⟨hg1, hg2⟩
+    · have hfalse := hf.2.2 g (CutWorld.mem_past.mpr hlt)
+      simp [hg1] at hfalse
+
+/-- **THE NORMAL FORM.** A strict probe world is safe IF AND ONLY IF some
+consume potential is a gap (never enabled) or carries a causal relinquish
+witness (a same-domain disable or a consume in its past). Every safe
+evolution of the single-use authority factors through one of these shapes;
+nothing else is safe. Structural in both directions. -/
+theorem authority_normal_form (w : CutWorld) (hstrict : w.strict) :
+    w.SafeCuts ↔
+      ∃ e : PE, peConsume e = true ∧
+        (w.Unenabled e ∨ w.RelinquishWitnessed e) := by
+  rw [safeCuts_iff_dead_potential w hstrict]
+  constructor
+  · rintro (h | h)
+    · exact ⟨2, by decide, (dead_trichotomy w 2).mp h⟩
+    · exact ⟨5, by decide, (dead_trichotomy w 5).mp h⟩
+  · rintro ⟨e, hcons, hshape⟩
+    rcases consume_eq_two_or_five e hcons with rfl | rfl
+    · exact Or.inl ((dead_trichotomy w 2).mpr hshape)
+    · exact Or.inr ((dead_trichotomy w 5).mpr hshape)
+
+/-- The unique consume potential of a domain: `2` for L, `5` for R. -/
+def potOf : Bool → PE
+  | true => 2
+  | false => 5
+
+/-- The domain is live at SOME valid closed cut of the world. -/
+abbrev CutWorld.EverLive (w : CutWorld) (d : Bool) : Prop :=
+  ∃ C : Finset PE, w.closedCut C ∧ w.validCut C ∧ w.cutLive d C
+
+/-- A potential fires exactly when its domain is live SOMEWHERE: the cut
+`past e` is closed, valid (fires' no-consume clause), and delivers exactly
+the potential's prerequisites. -/
+theorem everLive_iff_fires (w : CutWorld) (hstrict : w.strict) (d : Bool) :
+    w.EverLive d ↔ w.fires (potOf d) := by
+  obtain ⟨hirr, htrans⟩ := hstrict
+  constructor
+  · rintro ⟨C, _, _, e, hcons, hdom, _, _, hf⟩
+    have he : e = potOf d := by
+      rcases consume_eq_two_or_five e hcons with rfl | rfl
+      · cases d
+        · exact absurd hdom (by decide)
+        · rfl
+      · cases d
+        · rfl
+        · exact absurd hdom (by decide)
+    rwa [he] at hf
+  · intro hf
+    refine ⟨w.past (potOf d), ?_, ?_, potOf d, ?_, ?_, ?_, ?_, hf⟩
+    · intro e he f hfe
+      exact CutWorld.mem_past.mpr
+        (htrans f e (potOf d) hfe (CutWorld.mem_past.mp he))
+    · intro e he hcons
+      have hfalse := hf.2.2 e he
+      simp [hcons] at hfalse
+    · cases d <;> decide
+    · cases d <;> decide
+    · intro hmem
+      have hlt := CutWorld.mem_past.mp hmem
+      rw [hirr (potOf d)] at hlt
+      exact Bool.false_ne_true hlt
+    · exact Finset.Subset.refl _
+
+/-- **Cross-cut mutual exclusion (the trajectory reading).** A strict
+world is safe exactly when its two domains are never BOTH ever-live —
+across ALL valid closed cuts, not per cut. Strictly stronger than the v0
+per-cut frontier bound. -/
+theorem safeCuts_iff_ever_live_unique (w : CutWorld) (hstrict : w.strict) :
+    w.SafeCuts ↔ ¬(w.EverLive true ∧ w.EverLive false) := by
+  rw [safeCuts_iff_dead_potential w hstrict]
+  constructor
+  · rintro (h | h) ⟨hT, hF⟩
+    · exact h ((everLive_iff_fires w hstrict true).mp hT)
+    · exact h ((everLive_iff_fires w hstrict false).mp hF)
+  · intro h
+    by_cases h2 : w.fires 2
+    · right
+      intro h5
+      exact h ⟨(everLive_iff_fires w hstrict true).mpr h2,
+               (everLive_iff_fires w hstrict false).mpr h5⟩
+    · exact Or.inl h2
+
+/-- The live frontier of a cut — a DERIVED observer over `cutLive`, the
+same discipline as Layer A's `frontier`. Never a primitive. -/
+noncomputable def CutWorld.frontierAt (w : CutWorld) (C : Finset PE) :
+    Finset Bool :=
+  letI := Classical.decPred fun d => w.cutLive d C
+  Finset.univ.filter fun d => w.cutLive d C
+
+theorem CutWorld.mem_frontierAt {w : CutWorld} {C : Finset PE} {d : Bool} :
+    d ∈ w.frontierAt C ↔ w.cutLive d C := by
+  classical
+  unfold CutWorld.frontierAt
+  simp
+
+/-- **The per-cut handoff-or-gap dichotomy (the conjectured target
+shape).** In a safe strict world, EVERY valid closed cut has an empty
+frontier, or its frontier is EXACTLY the singleton domain opposite a dead
+consume potential that carries a gap-or-relinquish shape. The at-most-one
+of v0 is now doing something namable. -/
+theorem safe_cut_dichotomy (w : CutWorld) (hstrict : w.strict)
+    (hsafe : w.SafeCuts) (C : Finset PE) (hclosed : w.closedCut C)
+    (hvalid : w.validCut C) :
+    w.frontierAt C = ∅ ∨
+      ∃ e : PE, peConsume e = true ∧
+        (w.Unenabled e ∨ w.RelinquishWitnessed e) ∧
+        w.frontierAt C = {!peDomL e} := by
+  by_cases hempty : w.frontierAt C = ∅
+  · exact Or.inl hempty
+  · right
+    obtain ⟨d, hd⟩ := Finset.nonempty_iff_ne_empty.mpr hempty
+    have hfire : w.fires (potOf d) :=
+      (everLive_iff_fires w hstrict d).mp
+        ⟨C, hclosed, hvalid, CutWorld.mem_frontierAt.mp hd⟩
+    have hdeadOther : ¬ w.fires (potOf !d) := by
+      rcases (safeCuts_iff_dead_potential w hstrict).mp hsafe with h | h
+      · cases d
+        · exact h
+        · exact absurd hfire h
+      · cases d
+        · exact absurd hfire h
+        · exact h
+    refine ⟨potOf !d, ?_, (dead_trichotomy w _).mp hdeadOther, ?_⟩
+    · cases d <;> decide
+    · have hdomeq : (!peDomL (potOf !d)) = d := by cases d <;> decide
+      rw [hdomeq]
+      apply Finset.ext
+      intro d'
+      simp only [Finset.mem_singleton]
+      constructor
+      · intro hd'
+        have hfire' : w.fires (potOf d') :=
+          (everLive_iff_fires w hstrict d').mp
+            ⟨C, hclosed, hvalid, CutWorld.mem_frontierAt.mp hd'⟩
+        by_contra hne
+        have hflip : d' = !d := by
+          cases d <;> cases d' <;> simp_all
+        rw [hflip] at hfire'
+        exact absurd hfire' hdeadOther
+      · rintro rfl
+        exact hd
+
+/-- Bridge to Layer C: the sealed-handoff pattern is exactly a seal
+witness on one domain's (unique) consume potential. -/
+theorem sealedHandoff_iff_sealWitnessed (w : CutWorld) :
+    w.SealedHandoff ↔ (w.SealWitnessed 2 ∨ w.SealWitnessed 5) := by
+  constructor
+  · rintro ⟨d, h⟩
+    cases d
+    · right
+      obtain ⟨g, hg1, hg2, hlt⟩ := h 5 (by decide) (by decide)
+      refine ⟨g, hg1, ?_, hlt⟩
+      rw [hg2]; decide
+    · left
+      obtain ⟨g, hg1, hg2, hlt⟩ := h 2 (by decide) (by decide)
+      refine ⟨g, hg1, ?_, hlt⟩
+      rw [hg2]; decide
+  · rintro (⟨g, hg1, hg2, hlt⟩ | ⟨g, hg1, hg2, hlt⟩)
+    · refine ⟨true, fun e hcons hdom => ?_⟩
+      have he : e = 2 := by
+        rcases consume_eq_two_or_five e hcons with rfl | rfl
+        · rfl
+        · exact absurd hdom (by decide)
+      subst he
+      refine ⟨g, hg1, ?_, hlt⟩
+      rw [hg2]; decide
+    · refine ⟨false, fun e hcons hdom => ?_⟩
+      have he : e = 5 := by
+        rcases consume_eq_two_or_five e hcons with rfl | rfl
+        · exact absurd hdom (by decide)
+        · rfl
+      subst he
+      refine ⟨g, hg1, ?_, hlt⟩
+      rw [hg2]; decide
+
+/-! ## Layer G — no silent handoff (the abstract fragment)
+
+The abstract `AuthoritySystem` has no causal order, so the Layer F shapes
+cannot even be STATED over it (the Layer C/D boundary, unchanged). What
+does lift is the normal form's contrapositive punchline: **a handoff needs
+a connected moment.** `StepChain` is the derived reflexive-transitive
+closure of `step` — no new primitive, no new law. `no_silent_handoff`:
+in a Safe system under TOTAL partition (every reachable configuration
+pairwise disconnected), the live domain along any chain is CONSTANT —
+either the old holder's enablement survives every disconnected step
+(`frozen_live`, inductively, via `live_persists`) and v0's amalgamation
+fires at the endpoint, or the old holder already consumed and the new
+holder's consume lands a second receipt. Contrapositive
+(`handoff_needs_connection`): if live authority DID change hands along an
+evolution, some reachable configuration had a connected pair of distinct
+domains — the abstract shadow of Layer F's causal relinquish witness.
+
+Scope honesty: this is a FRAGMENT, not the characterization. It says
+transfer implies connection; it does not classify what the connection must
+carry — that classification (`authority_normal_form`) exists only in the
+finite causal vocabulary, where a causal order is available to state the
+shapes. Lifting the full trichotomy to an abstract causal setting remains
+open, exactly as Layer C's honest-scope note anticipated. -/
+
+/-- Multi-step evolution: the reflexive-transitive closure of `step`.
+DERIVED from the existing signature — not a new primitive. -/
+inductive StepChain (S : AuthoritySystem D) : S.Config → S.Config → Prop
+  | refl (c : S.Config) : StepChain S c c
+  | tail {c₁ c₂ c₃ : S.Config} {d : D} :
+      StepChain S c₁ c₂ → S.step c₂ d c₃ → StepChain S c₁ c₃
+
+/-- Chains preserve reachability. -/
+theorem StepChain.reachable_of {S : AuthoritySystem D}
+    {c₁ c₂ : S.Config} (h : StepChain S c₁ c₂) (hr : S.reachable c₁) :
+    S.reachable c₂ := by
+  induction h with
+  | refl => exact hr
+  | tail _ hs ih => exact S.step_reachable _ _ _ ih hs
+
+/-- Persistence under total partition: along any chain, a live domain
+either stays live (each disconnected step is absorbed by `frozen_live`) or
+has consumed — its receipt is in the record. -/
+theorem live_persists {S : AuthoritySystem D}
+    (hdis : ∀ c, S.reachable c → ∀ d₁ d₂ : D, d₁ ≠ d₂ → S.disconnected c d₁ d₂)
+    {c₁ c₂ : S.Config} {d₁ : D} (hchain : StepChain S c₁ c₂)
+    (hr : S.reachable c₁) (hlive : S.live c₁ d₁) :
+    S.live c₂ d₁ ∨ d₁ ∈ S.receipts c₂ := by
+  induction hchain with
+  | refl => exact Or.inl hlive
+  | @tail cb cc d hchain' hs ih =>
+    have hrb : S.reachable cb := hchain'.reachable_of hr
+    rcases ih with hl | hrcpt
+    · by_cases hd : d = d₁
+      · subst hd
+        right
+        rw [S.receipts_step _ _ _ hs]
+        exact Finset.mem_insert_self _ _
+      · left
+        exact S.frozen_live cb d d₁ cc (hdis cb hrb d d₁ hd) hs hl
+    · right
+      rw [S.receipts_step _ _ _ hs]
+      exact Finset.mem_insert_of_mem hrcpt
+
+/-- **No silent handoff (the abstract normal-form fragment).** In a safe
+system under total partition, the live domain never changes along any
+evolution: live `d₁` at `c₁` and live `d₂` at any chain-successor `c₂`
+forces `d₁ = d₂`. Either `d₁`'s enablement persisted (then v0's
+amalgamation fires at `c₂`), or `d₁` consumed (then firing `d₂` lands a
+second receipt). Authority transfer between permanently disconnected
+domains is impossible. -/
+theorem no_silent_handoff (S : AuthoritySystem D) (hsafe : Safe S)
+    (hdis : ∀ c, S.reachable c → ∀ d₁ d₂ : D, d₁ ≠ d₂ → S.disconnected c d₁ d₂)
+    {c₁ c₂ : S.Config} {d₁ d₂ : D} (hr : S.reachable c₁)
+    (hchain : StepChain S c₁ c₂) (h₁ : S.live c₁ d₁) (h₂ : S.live c₂ d₂) :
+    d₁ = d₂ := by
+  by_contra hne
+  have hr₂ : S.reachable c₂ := hchain.reachable_of hr
+  rcases live_persists hdis hchain hr h₁ with hl | hrcpt
+  · exact no_disconnected_double_availability S hsafe hr₂ hne
+      (hdis c₂ hr₂ d₁ d₂ hne) ⟨hl, h₂⟩
+  · obtain ⟨c₃, hs⟩ := S.step_live c₂ d₂ h₂
+    have hr₃ : S.reachable c₃ := S.step_reachable _ _ _ hr₂ hs
+    have hrec : S.receipts c₃ = insert d₂ (S.receipts c₂) :=
+      S.receipts_step _ _ _ hs
+    have hsub : ({d₁, d₂} : Finset D) ⊆ S.receipts c₃ := by
+      intro x hx
+      rcases Finset.mem_insert.mp hx with rfl | hx'
+      · rw [hrec]
+        exact Finset.mem_insert_of_mem hrcpt
+      · rw [Finset.mem_singleton] at hx'
+        subst hx'
+        rw [hrec]
+        exact Finset.mem_insert_self _ _
+    have h2le : 2 ≤ (S.receipts c₃).card := by
+      calc 2 = ({d₁, d₂} : Finset D).card := (Finset.card_pair hne).symm
+        _ ≤ (S.receipts c₃).card := Finset.card_le_card hsub
+    have := hsafe c₃ hr₃
+    omega
+
+/-- **A handoff needs a connected moment (contrapositive corollary).** If
+live authority DID move across a chain in a safe system, then some
+reachable configuration had a connected pair of distinct domains — the
+communication that carried the handoff. The abstract shadow of the causal
+relinquish witness. -/
+theorem handoff_needs_connection (S : AuthoritySystem D) (hsafe : Safe S)
+    {c₁ c₂ : S.Config} {d₁ d₂ : D} (hr : S.reachable c₁)
+    (hchain : StepChain S c₁ c₂) (h₁ : S.live c₁ d₁) (h₂ : S.live c₂ d₂)
+    (hne : d₁ ≠ d₂) :
+    ∃ c, S.reachable c ∧ ∃ e₁ e₂ : D, e₁ ≠ e₂ ∧ ¬ S.disconnected c e₁ e₂ := by
+  by_contra h
+  push_neg at h
+  exact hne (no_silent_handoff S hsafe h hr hchain h₁ h₂)
+
 end Crdt.AuthorityFrontier

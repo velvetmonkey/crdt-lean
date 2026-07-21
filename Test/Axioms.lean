@@ -134,5 +134,70 @@ info: 'Crdt.AuthorityFrontier.ccca_safe_world_no_double_availability' depends on
 /-- info: 'Crdt.AuthorityFrontier.seq_not_sealed_senders' depends on axioms: [propext, Classical.choice, Quot.sound] -/
 #guard_msgs in #print axioms Crdt.AuthorityFrontier.seq_not_sealed_senders
 
+-- Normal form STEP-0 enumerator + shape probe
+-- (`Crdt.AuthorityFrontier`, Layer E).
+
+/-- info: 'Crdt.AuthorityFrontier.step0_alternative_expressible' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.step0_alternative_expressible
+
+/-- info: 'Crdt.AuthorityFrontier.step0_gap_world_expressible' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.step0_gap_world_expressible
+
+/-- info: 'Crdt.AuthorityFrontier.step0_seal_shape' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.step0_seal_shape
+
+/-- info: 'Crdt.AuthorityFrontier.step0_seq_shape' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.step0_seq_shape
+
+/-- info: 'Crdt.AuthorityFrontier.probeWorld_irrefl' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.probeWorld_irrefl
+
+/-- info: 'Crdt.AuthorityFrontier.probeWorld_107' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.probeWorld_107
+
+/-- info: 'Crdt.AuthorityFrontier.probeWorld_2' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.probeWorld_2
+
+-- The handoff-or-gap NORMAL FORM (`Crdt.AuthorityFrontier`, Layer F).
+
+/-- info: 'Crdt.AuthorityFrontier.both_fires_unsafe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.both_fires_unsafe
+
+/-- info: 'Crdt.AuthorityFrontier.dead_potential_safe' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.dead_potential_safe
+
+/-- info: 'Crdt.AuthorityFrontier.safeCuts_iff_dead_potential' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.safeCuts_iff_dead_potential
+
+/-- info: 'Crdt.AuthorityFrontier.dead_trichotomy' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.dead_trichotomy
+
+/-- info: 'Crdt.AuthorityFrontier.authority_normal_form' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.authority_normal_form
+
+/-- info: 'Crdt.AuthorityFrontier.everLive_iff_fires' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.everLive_iff_fires
+
+/-- info: 'Crdt.AuthorityFrontier.safeCuts_iff_ever_live_unique' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.safeCuts_iff_ever_live_unique
+
+/-- info: 'Crdt.AuthorityFrontier.safe_cut_dichotomy' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.safe_cut_dichotomy
+
+/-- info: 'Crdt.AuthorityFrontier.sealedHandoff_iff_sealWitnessed' depends on axioms: [propext] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.sealedHandoff_iff_sealWitnessed
+
+-- No silent handoff — the abstract fragment
+-- (`Crdt.AuthorityFrontier`, Layer G).
+
+/-- info: 'Crdt.AuthorityFrontier.live_persists' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.live_persists
+
+/-- info: 'Crdt.AuthorityFrontier.no_silent_handoff' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.no_silent_handoff
+
+/-- info: 'Crdt.AuthorityFrontier.handoff_needs_connection' depends on axioms: [propext, Classical.choice, Quot.sound] -/
+#guard_msgs in #print axioms Crdt.AuthorityFrontier.handoff_needs_connection
+
 def main : IO Unit :=
   IO.println "axiom gate passed: all checks pinned by #guard_msgs at compile time"
